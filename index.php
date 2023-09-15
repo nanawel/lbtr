@@ -16,6 +16,10 @@ function base64_url_decode(string $input): string {
     return $string;
 }
 
+function json_prettify(string $input): string {
+    return json_encode(json_decode($input, null, 512, JSON_THROW_ON_ERROR), JSON_PRETTY_PRINT);
+}
+
 foreach ($_GET as $p => $v) {
     switch ($p) {
         case 'header':
@@ -35,14 +39,25 @@ foreach ($_GET as $p => $v) {
             break;
         
         case 'body':
-            // Defer body rendering
-            try {
-                $body = base64_url_decode($v);
-            } catch (\Throwable $e) {
-                try {
-                    $body = base64_decode($v);
-                } catch (\Throwable $e) {
-                    error_log("Unable to decode body (is it valid URL-compatible base64?): {$e->getMessage()}");
+            $body = $v;
+            break;
+        
+        case 'dec':
+            foreach (explode(',', $v) as $decoder) {
+                switch ($decoder) {
+                    case 'base64_url_decode':
+                    case 'base64_decode':
+                    case 'zlib_decode':
+                    case 'gzinflate':
+                    case 'json_prettify':
+                    case 'print':
+                    case 'echo':
+                    case 'none':
+                        $bodyDecoders[] = $decoder;
+                        break;
+                    
+                    default:
+                        error_log("Unsupported body decoder: $decoder. Ignoring.");
                 }
             }
             break;
@@ -52,6 +67,21 @@ foreach ($_GET as $p => $v) {
     }
 }
 
+if (!isset($bodyDecoders)) {
+    // Default decoder
+    $bodyDecoders = ['base64_url_decode'];
+}
+
 if (isset($body)) {
-    die($body);
+    die(array_reduce($bodyDecoders, function($carry, $decoderCallable) {
+        try {
+            if (in_array($decoderCallable, ['echo', 'print', 'none'])) {
+                return $carry;
+            }
+            return $decoderCallable($carry);
+        } catch (\Throwable $e) {
+            file_put_contents('php://stderr', "Unable to decode body with $decoderCallable: {$e->getMessage()}\n");
+            error_log("Unable to decode body with $decoderCallable: {$e->getMessage()}");
+        }
+    }, $body));
 }
