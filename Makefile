@@ -1,6 +1,6 @@
 
 build:
-	docker build -t nanawel/lbtr .
+	docker build --pull -t nanawel/lbtr .
 
 push:
 	docker push nanawel/lbtr
