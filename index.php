@@ -20,9 +20,21 @@ function json_prettify(string $input): string {
     return json_encode(json_decode($input, null, 512, JSON_THROW_ON_ERROR), JSON_PRETTY_PRINT);
 }
 
+$decoderAliases = [
+    'b64ud' => 'base64_url_decode',
+    'b64d' => 'base64_decode',
+    'zd' => 'zlib_decode',
+    'gzi' => 'gzinflate',
+    'jp' => 'json_prettify',
+    'p' => 'print',
+    'e' => 'echo',
+    'n' => 'none',
+];
+
 foreach ($_GET as $p => $v) {
     switch ($p) {
         case 'header':
+        case 'h':
             if (is_array($v)) {
                 foreach ($v as $header => $value) {
                     if (is_array($value)) {
@@ -39,11 +51,14 @@ foreach ($_GET as $p => $v) {
             break;
         
         case 'body':
+        case 'b':
             $body = $v;
             break;
         
         case 'dec':
+        case 'd':
             foreach (explode(',', $v) as $decoder) {
+                $decoder = $decoderAliases[$decoder] ?? $decoder;
                 switch ($decoder) {
                     case 'base64_url_decode':
                     case 'base64_decode':
